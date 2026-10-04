@@ -1,0 +1,46 @@
+name: carril
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-carril}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carril}
+      POSTGRES_DB: ${POSTGRES_DB:-carril}
+      POSTGRES_TEST_DB: ${POSTGRES_TEST_DB:-carril_test}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 00_init.sh aplica ddl/*.sql (en orden) a la BD principal y a la de pruebas, y seed/*.sql solo a la principal
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/ddl:/carril/ddl:ro
+      - ./database/seed:/carril/seed:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-carril}:${POSTGRES_PASSWORD:-carril}@db:5432/${POSTGRES_DB:-carril}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env (ver .env.example)}
+      JWT_EXPIRES_MINUTES: ${JWT_EXPIRES_MINUTES:-720}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

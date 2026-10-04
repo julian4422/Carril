@@ -1,0 +1,91 @@
+/* Carril: paleta con variables CSS, claro/oscuro según prefers-color-scheme. */
+:root {
+  color-scheme: light dark;
+  --bg: #f4f2ec;
+  --surface: #ffffff;
+  --surface-2: #edeae2;
+  --border: #dedacf;
+  --border-strong: #bdb8aa;
+  --text: #1b2321;
+  --text-muted: #5b6662;
+  --accent: #0f6e63;
+  --accent-strong: #0b564d;
+  --accent-contrast: #ffffff;
+  --danger: #b3261e;
+  --warn: #8a5a00;
+  --warn-bg: #fff1d0;
+  --overdue: #b3261e;
+  --overdue-bg: #fde7e4;
+  --prio-low: #4a6a8a;
+  --prio-medium: #3b6f4f;
+  --prio-high: #a35a00;
+  --prio-urgent: #b3261e;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgb(20 30 28 / .08), 0 2px 6px rgb(20 30 28 / .05);
+  --shadow-lg: 0 12px 40px rgb(10 20 18 / .25);
+  --focus: #1f6feb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12171a;
+    --surface: #1b2226;
+    --surface-2: #252e33;
+    --border: #2f3a40;
+    --border-strong: #46545c;
+    --text: #e8eeec;
+    --text-muted: #9fb0aa;
+    --accent: #3fb8a5;
+    --accent-strong: #5fd0be;
+    --accent-contrast: #072622;
+    --danger: #ff7b72;
+    --warn: #f0b429;
+    --warn-bg: #3a2e0c;
+    --overdue: #ff8c84;
+    --overdue-bg: #44201d;
+    --prio-low: #8db3d9;
+    --prio-medium: #7fcf9c;
+    --prio-high: #f0a24a;
+    --prio-urgent: #d9433a;
+    --focus: #79b8ff;
+    --shadow: 0 1px 2px rgb(0 0 0 / .4);
+    --shadow-lg: 0 12px 40px rgb(0 0 0 / .6);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { line-height: 1.2; }
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.field-select {
+  font: inherit; color: var(--text); background: var(--surface);
+  padding: .55rem .7rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

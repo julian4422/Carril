@@ -1,0 +1,152 @@
+<ui-app-header>
+  <div class="crumbs">
+    <a routerLink="/boards" class="back">← Tableros</a>
+    @if (store.board(); as b) {
+      <h1 class="board-name"><span class="dot" [style.background]="b.color" aria-hidden="true"></span><span class="name-text" [title]="b.name">{{ b.name }}</span></h1>
+    }
+  </div>
+</ui-app-header>
+
+<p id="dnd-help" class="visually-hidden">
+  Arrastra la tarjeta a otra posición o columna. Con el teclado, mantén Alt y usa las flechas para moverla; Enter abre el detalle.
+</p>
+<div class="visually-hidden" role="status" aria-live="polite">{{ announcement() }}</div>
+
+<main class="board">
+  @if (store.loading()) {
+    <p class="state" role="status">Cargando tablero…</p>
+  } @else if (store.error()) {
+    <div class="state state--error" role="alert">
+      <p>{{ store.error() }}</p>
+      <button uiButton (click)="reload()">Reintentar</button>
+      <a routerLink="/boards">Volver a mis tableros</a>
+    </div>
+  } @else if (store.board()) {
+    <section class="toolbar" aria-label="Filtros">
+      <div class="search">
+        <label for="f-text" class="visually-hidden">Buscar tarjetas</label>
+        <input id="f-text" type="search" class="field-select" placeholder="Buscar por texto…" [value]="store.filterText()" (input)="onSearch($event)" />
+      </div>
+      <div>
+        <label for="f-prio" class="visually-hidden">Filtrar por prioridad</label>
+        <select id="f-prio" class="field-select" [value]="store.filterPriority()" (change)="onPriority($event)">
+          <option value="">Todas las prioridades</option>
+          @for (p of priorities; track p) {<option [value]="p" [selected]="store.filterPriority() === p">{{ priorityLabel[p] }}</option>}
+        </select>
+      </div>
+      @if (store.filtering()) {
+        <button uiButton variant="ghost" size="sm" (click)="store.clearFilters()">Limpiar filtros</button>
+      }
+    </section>
+
+    <div class="columns">
+      @for (v of store.view(); track v.column.id) {
+        @let col = v.column;
+        <section
+          class="column"
+          [class.over-wip]="v.overWip"
+          [class.col-before]="columnHint()?.id === col.id && !columnHint()!.after"
+          [class.col-after]="columnHint()?.id === col.id && columnHint()!.after"
+          [class.dragging]="drag()?.kind === 'column' && drag()?.id === col.id"
+          [attr.data-column-id]="col.id"
+          [attr.aria-labelledby]="'col-title-' + col.id"
+          (dragover)="onColumnDragOver($event, col)"
+          (drop)="onColumnDrop($event, col)"
+        >
+          <header class="col-head" draggable="true" (dragstart)="onColumnDragStart($event, col)" (dragend)="endDrag()">
+            <button
+              type="button" class="grip" [attr.aria-label]="'Mover columna ' + col.name + '. Alt más flechas izquierda o derecha'"
+              (keydown)="onColumnKeydown($event, col)"
+            >⠿</button>
+            <h2 [id]="'col-title-' + col.id">{{ col.name }}</h2>
+            <span class="count" [class.count--over]="v.overWip"
+              [attr.aria-label]="col.wip_limit !== null ? (col.tasks.length | plural:'tarjeta':'tarjetas') + ', límite ' + col.wip_limit : (col.tasks.length | plural:'tarjeta':'tarjetas')">
+              {{ col.tasks.length }}@if (col.wip_limit !== null) { / {{ col.wip_limit }}}
+            </span>
+            <button type="button" class="menu" [attr.aria-label]="'Ajustes de la columna ' + col.name" (click)="openColumnSettings(col)">⋯</button>
+          </header>
+          @if (v.overWip) {
+            <p class="wip-alert" role="status">Límite WIP superado</p>
+          }
+
+          <div
+            class="list" role="list"
+            [class.drop-end]="taskHint()?.columnId === col.id && taskHint()!.taskId === null"
+            (dragover)="onListDragOver($event, col)" (drop)="onListDrop($event, col)"
+          >
+            @for (task of v.tasks; track task.id) {
+              <div
+                class="item" role="listitem" draggable="true" [attr.data-task-id]="task.id"
+                [class.dragging]="drag()?.kind === 'task' && drag()?.id === task.id"
+                [class.drop-before]="taskHint()?.taskId === task.id && !taskHint()!.after"
+                [class.drop-after]="taskHint()?.taskId === task.id && taskHint()!.after"
+                (dragstart)="onTaskDragStart($event, task)" (dragend)="endDrag()"
+                (dragover)="onTaskDragOver($event, col, task)" (drop)="onTaskDrop($event, col, task)"
+                (keydown)="onCardKeydown($event, col, task)"
+              >
+                <app-task-card [task]="task" [columnName]="col.name" [assigneeName]="assigneeName(task)" (open)="selectedTaskId.set(task.id)" />
+              </div>
+            } @empty {
+              <p class="empty">{{ store.filtering() && col.tasks.length ? 'Sin coincidencias' : 'Sin tarjetas' }}</p>
+            }
+          </div>
+
+          @if (addingIn() === col.id) {
+            <form class="quick" (submit)="$event.preventDefault(); submitQuick(col.id)">
+              <label [for]="'quick-' + col.id" class="visually-hidden">Título de la nueva tarjeta en {{ col.name }}</label>
+              <textarea [id]="'quick-' + col.id" rows="2" placeholder="Título de la tarjeta…" [formControl]="quickTitle" (keydown)="onQuickKey($event, col.id)"></textarea>
+              <div class="quick-actions">
+                <button uiButton variant="primary" size="sm" type="submit">Añadir</button>
+                <button uiButton variant="ghost" size="sm" (click)="addingIn.set(null)">Cerrar</button>
+              </div>
+            </form>
+          } @else {
+            <button type="button" class="add-card" (click)="startAdding(col.id)">+ Añadir tarjeta<span class="visually-hidden"> en {{ col.name }}</span></button>
+          }
+        </section>
+      }
+
+      <div class="new-column">
+        @if (addingColumn()) {
+          <form [formGroup]="newColumnForm" (ngSubmit)="addColumn()" novalidate>
+            <ui-input label="Nombre de la columna" formControlName="name" [maxlength]="60" [required]="true" />
+            <div class="quick-actions">
+              <button uiButton variant="primary" size="sm" type="submit">Añadir columna</button>
+              <button uiButton variant="ghost" size="sm" (click)="addingColumn.set(false)">Cancelar</button>
+            </div>
+          </form>
+        } @else {
+          <button uiButton (click)="addingColumn.set(true)">+ Añadir columna</button>
+        }
+      </div>
+    </div>
+  }
+</main>
+
+@if (selectedTaskId(); as id) {
+  <app-task-detail [taskId]="id" (closed)="selectedTaskId.set(null)" />
+}
+
+@if (editingColumn(); as col) {
+  <ui-modal title="Ajustes de la columna" (closed)="editingColumn.set(null)">
+    <form id="col-form" class="col-form" [formGroup]="columnForm" (ngSubmit)="saveColumn()" novalidate>
+      <ui-input label="Nombre" formControlName="name" [maxlength]="60" [required]="true" />
+      <ui-input label="Límite WIP" formControlName="wip" type="text" hint="Máximo de tarjetas recomendado. Déjalo vacío para quitarlo." />
+    </form>
+    <ng-container modal-footer>
+      <button uiButton variant="danger" class="push-left" (click)="askDeleteColumn()">Eliminar columna</button>
+      <button uiButton variant="ghost" (click)="editingColumn.set(null)">Cancelar</button>
+      <button uiButton variant="primary" type="submit" form="col-form" [busy]="busy()">Guardar</button>
+    </ng-container>
+  </ui-modal>
+}
+
+@if (deletingColumn(); as col) {
+  <ui-confirm
+    title="Eliminar columna"
+    [message]="'Se eliminará «' + col.name + '» y sus ' + (col.tasks.length | plural:'tarjeta':'tarjetas') + '. Esta acción no se puede deshacer.'"
+    [busy]="busy()"
+    (confirmed)="confirmDeleteColumn()"
+    (cancelled)="deletingColumn.set(null)"
+  />
+}
