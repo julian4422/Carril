@@ -103,3 +103,14 @@ Comentario: `POST /tasks/{id}/comments {"body":"Listo"}` -> `201 {"id":"...","ta
 - **WIP** es informativo: se guarda pero la API no bloquea por él.
 - **Arranque.** La API no arranca si `JWT_SECRET` falta, tiene menos de 32 caracteres o es un valor de ejemplo
   (`change-me-in-production`, `secret`, `changeme`). Genera uno con `openssl rand -hex 32`.
+
+## Reglas v1.2 (móvil)
+
+No cambian endpoints ni tipos; estos cambios son transparentes para el cliente.
+
+- **Compresión.** Las respuestas de 1000 bytes o más se comprimen con GZip si la petición envía `Accept-Encoding: gzip`
+  (`Content-Encoding: gzip` y `Vary: Accept-Encoding`). Las más pequeñas salen sin comprimir. Aplica también a las respuestas de error.
+- **CORS en errores.** Todas las respuestas, incluidas 500 y 503, llevan `Access-Control-Allow-Origin` cuando el `Origin` de la
+  petición está en `CORS_ORIGINS`, así que el navegador puede leer el `detail`. Con un origen no permitido, o sin `Origin`, no se envía ninguna cabecera CORS.
+- **Proxy inverso.** Detrás de un proxy HTTPS, la API respeta `X-Forwarded-Proto` y `X-Forwarded-For` si la IP del proxy está en
+  `FORWARDED_ALLOW_IPS`. Ver [DEPLOYMENT.md](DEPLOYMENT.md).

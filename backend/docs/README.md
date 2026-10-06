@@ -28,6 +28,8 @@ export JWT_SECRET=$(openssl rand -hex 32)
 .venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
+Producción (HTTPS, frontend y API en el mismo origen detrás de un proxy inverso): [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Variables de entorno
 
 | Variable | Defecto | Descripción |
@@ -35,7 +37,8 @@ export JWT_SECRET=$(openssl rand -hex 32)
 | `DATABASE_URL` | `postgresql+asyncpg://carril:carril@localhost:5432/carril` | Conexión async a Postgres |
 | `JWT_SECRET` | (obligatoria) | Secreto HS256, mínimo 32 caracteres y no un valor de ejemplo; la API no arranca si no cumple. `openssl rand -hex 32` |
 | `JWT_EXPIRES_MINUTES` | `720` | Vigencia del token |
-| `CORS_ORIGINS` | `http://localhost:4200` | Orígenes permitidos, separados por comas |
+| `CORS_ORIGINS` | `http://localhost:4200` | Orígenes permitidos, separados por comas. Se aplica también a las respuestas 500 y 503. Con frontend y API en el mismo origen el navegador no necesita CORS; basta con el origen público |
+| `FORWARDED_ALLOW_IPS` | `127.0.0.1` (imagen Docker) | IPs o subredes (CIDR) del proxy inverso de las que Uvicorn acepta `X-Forwarded-Proto/For`, separadas por comas; `*` confía en cualquiera. La lee Uvicorn, no la app. Ver [DEPLOYMENT.md](DEPLOYMENT.md) |
 | `BCRYPT_ROUNDS` | `12` | Coste de bcrypt (las pruebas usan 4) |
 | `TEST_DATABASE_URL` | `postgresql+asyncpg://carril:carril@localhost:5432/carril_test` | Solo pruebas de integración |
 | `E2E_BASE_URL` | `http://localhost:8000` | Solo pruebas e2e |

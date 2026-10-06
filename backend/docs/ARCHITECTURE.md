@@ -27,6 +27,33 @@ Regla de dependencias: los routers solo conocen servicios y schemas; los servici
 4. El servicio aplica reglas, muta objetos ORM y llama `uow.commit()`.
 5. Tras el commit, el servicio relee el recurso (`populate_existing`, con etiquetas y `comment_count`) y devuelve el schema.
 6. Los `DomainError` se traducen a `{"detail": "..."}` con su código (401, 404, 409, 422). La validación de Pydantic produce el 422 estándar.
+   Cualquier otra excepción da 500 JSON, o 503 si es de conexión a la BD (ver Middlewares).
+
+## Middlewares
+
+`create_app()` (`app/main.py`) los registra con `add_middleware`, que apila hacia fuera: el último añadido es el más externo.
+De fuera hacia dentro:
+
+```
+ServerErrorMiddleware (Starlette)   respaldo: solo ve errores de los propios middlewares
+  GZipMiddleware                    comprime respuestas >= 1000 bytes si el cliente acepta gzip
+    CORSMiddleware                  cabeceras CORS para los orígenes de CORS_ORIGINS; responde los preflight
+      UnhandledErrorMiddleware      (app/core/errors.py) excepción no controlada -> 500 {"detail":"Error interno"}
+        ExceptionMiddleware         DomainError, IntegrityError (409), OperationalError/InterfaceError/OSError (503), 422
+          routers
+```
+
+Por qué este orden:
+
+- Starlette atiende el manejador de `Exception` en `ServerErrorMiddleware`, por fuera de CORS, así que ese 500 salía sin
+  `Access-Control-Allow-Origin` y el navegador lo veía como error de red. `UnhandledErrorMiddleware`, dentro de CORS, registra la
+  excepción con `logger.exception` y la convierte en el 500 JSON antes de que salga: CORS y GZip la tratan como cualquier otra
+  respuesta. Si la respuesta ya había empezado a enviarse, vuelve a lanzar la excepción.
+- Los 4xx y el 503 ya se resolvían en `ExceptionMiddleware`, que queda dentro de CORS.
+- GZip va por fuera de CORS para comprimir también los errores. Cada uno añade su valor a `Vary` (`Accept-Encoding`, `Origin`).
+
+Antes de la app, Uvicorn aplica los `X-Forwarded-*` (`--proxy-headers` y `FORWARDED_ALLOW_IPS`, por defecto `127.0.0.1` en la
+imagen): con un proxy de confianza, `request.url.scheme` es `https` y `request.client` es la IP real del cliente.
 
 ## Transacciones y reordenamiento
 

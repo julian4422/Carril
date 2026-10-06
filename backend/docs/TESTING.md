@@ -14,7 +14,9 @@ cd backend
 
 Servicios y seguridad con repositorios en memoria (`tests/unit/fakes.py`), sin BD ni red: hash/verify, JWT (expirado, firma inválida,
 alg none), reglas puras de reordenamiento, mover (misma columna arriba/abajo, entre columnas, acotado), 404 por recurso ajeno,
-columnas por defecto, validación de schemas.
+columnas por defecto, validación de schemas y configuración (`JWT_SECRET`, lista de `CORS_ORIGINS`).
+`test_middleware.py`: orden de la pila (GZip -> CORS -> UnhandledError) y `minimum_size=1000`; `UnhandledErrorMiddleware`
+convierte una excepción en 500 JSON, la vuelve a lanzar si la respuesta ya empezó y deja pasar los scopes que no son HTTP.
 
 ## integration (`tests/integration/`)
 
@@ -24,6 +26,15 @@ Aislamiento: `TRUNCATE users, boards, ... CASCADE` antes y después de cada prue
 y no rollback porque cada petición hace su propio commit, y no DELETE de usuarios porque mezclar CASCADE y SET NULL en una
 transacción puede dar `ForeignKeyViolation`. Incluye concurrencia (`asyncio.gather` de creaciones, movimientos, borrados y reordenamientos: cero 500, posiciones contiguas) y errores JSON (409/500/503). Las pruebas fijan `JWT_SECRET` válido en `tests/conftest.py`. Cubre cada endpoint: caminos felices, 401, 404 ajeno, 409, 422, posiciones tras
 mover/borrar, cascadas, CORS, health 503 y número constante de consultas en `GET /boards/{id}`.
+
+`test_mobile.py` (v1.2): 500 y 503 con origen permitido llevan `access-control-allow-origin` y `Vary: Origin`; con origen no
+permitido o sin `Origin`, no llevan cabeceras CORS. Usa `ASGITransport` con `raise_app_exceptions=True`, así que una excepción que
+escapara de la app haría fallar la prueba. `GET /boards/{id}` con 15 tareas y `Accept-Encoding: gzip` -> `content-encoding: gzip`
+junto con CORS y `Vary: Accept-Encoding, Origin`; el mismo tablero con `identity` y `/health` (respuesta pequeña) salen sin
+comprimir; el preflight sigue funcionando.
+
+Verificación manual del contenedor (ver [DEPLOYMENT.md](DEPLOYMENT.md)): `curl -sI -H 'Accept-Encoding: gzip'` sobre un tablero
+grande debe mostrar `content-encoding: gzip`.
 
 ## e2e (`tests/e2e/`)
 
