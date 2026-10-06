@@ -15,7 +15,7 @@ let uid = 0;
 @Component({
   selector: 'ui-modal',
   template: `
-    <div class="backdrop" (mousedown)="onBackdrop($event)">
+    <div class="backdrop" [class.backdrop--lg]="size() === 'lg'" (mousedown)="onBackdrop($event)">
       <div
         #dialog
         class="dialog"
@@ -38,8 +38,10 @@ let uid = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .backdrop {
-      position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 1rem;
-      background: rgb(10 14 14 / .55); overflow-y: auto;
+      position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+      padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+        max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+      background: rgb(10 14 14 / .55); overflow-y: auto; overscroll-behavior: contain;
     }
     .dialog {
       width: min(30rem, 100%); max-height: calc(100dvh - 2rem); display: flex; flex-direction: column;
@@ -49,11 +51,30 @@ let uid = 0;
     .dialog--lg { width: min(50rem, 100%); }
     .head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem .5rem; }
     h2 { margin: 0; font-size: 1.2rem; }
-    .close { font-size: 1.6rem; line-height: 1; background: none; border: 0; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-sm); padding: 0 .4rem; }
+    .close {
+      font-size: 1.6rem; line-height: 1; background: none; border: 0; color: var(--text-muted); cursor: pointer;
+      border-radius: var(--radius-sm); padding: 0 .4rem; min-width: 44px; min-height: 44px; flex: none;
+    }
+    h2 { min-width: 0; overflow-wrap: anywhere; }
     .close:hover { color: var(--text); background: var(--surface-2); }
     .body { padding: .5rem 1.25rem 1rem; overflow-y: auto; }
     .foot { display: flex; justify-content: flex-end; gap: .5rem; padding: 0 1.25rem 1.1rem; }
     .foot:empty { display: none; }
+    .foot { flex-wrap: wrap; }
+    /* Móvil: el diálogo grande (detalle de tarjeta) ocupa la pantalla completa. */
+    @media (max-width: 640px) {
+      .backdrop--lg { padding: 0; display: block; overflow: hidden; }
+      .dialog--lg {
+        width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+      }
+      .dialog--lg .head { padding: .5rem .75rem .25rem 1rem; border-bottom: 1px solid var(--border); }
+      .dialog--lg .body { flex: 1; min-height: 0; padding: .75rem 1rem 1rem; }
+      .dialog--lg .foot {
+        padding: .6rem 1rem calc(.6rem + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--border); background: var(--surface);
+      }
+    }
   `,
 })
 export class ModalComponent implements AfterViewInit, OnDestroy {

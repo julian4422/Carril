@@ -95,6 +95,8 @@ import { BoardStore } from './board.store';
     @media (min-width: 760px) { .layout { grid-template-columns: 1.2fr 1fr; } }
     .form, .side { display: grid; gap: 1rem; align-content: start; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    @media (max-width: 420px) { .row { grid-template-columns: 1fr; } }
+    .lbl { min-height: 44px; }
     .field { display: grid; gap: .3rem; }
     .field label { font-weight: 600; font-size: .9rem; }
     .assign { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; background: var(--surface-2); border-radius: var(--radius-sm); }

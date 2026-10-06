@@ -15,7 +15,16 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     locale: 'es-ES',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // Escritorio: ratón.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /mobile\.spec\.ts/ },
+    // Móvil: emulación táctil de un Pixel 7 con el tamaño de referencia 390×844.
+    {
+      name: 'mobile',
+      use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 } },
+      testMatch: /mobile\.spec\.ts/,
+    },
+  ],
   webServer: {
     command: 'npx ng serve --port 4200',
     url: 'http://localhost:4200',
