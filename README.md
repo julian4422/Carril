@@ -12,14 +12,14 @@ Gestor de tareas tipo Kanban: tableros, columnas y tarjetas arrastrables.
 ## Requisitos
 
 - Docker Desktop (con Docker Compose v2)
-- Node 20.11+ y npm
+- Node 20.12+ y npm
 - Python 3.12+ (solo para correr las pruebas de `database/` y `backend/` fuera de Docker)
 
 ## Levantar todo
 
 ```bash
 cp .env.example .env          # una sola vez, y luego define JWT_SECRET en .env:
-python3 -c "import secrets;print(secrets.token_urlsafe(48))"   # pega el valor en JWT_SECRET
+openssl rand -hex 32          # pega el valor en JWT_SECRET
 docker compose up -d --build  # PostgreSQL :5432 + API :8000
 cd frontend && npm install && npm start   # http://localhost:4200
 ```

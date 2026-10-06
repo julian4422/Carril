@@ -259,8 +259,7 @@ td.m { font-family: var(--f-mono); font-size: 0.82rem; white-space: nowrap; }
 │   ├── app/
 │   │   ├── main.py
 │   │   ├── core/              <span class="c"># config, security, errors</span>
-│   │   ├── db/                <span class="c"># engine, session</span>
-│   │   ├── models/            <span class="c"># ORM (mapea el DDL, no lo genera)</span>
+│   │   ├── db/                <span class="c"># engine, session, unit of work, models.py (ORM: mapea el DDL, no lo genera)</span>
 │   │   ├── schemas/           <span class="c"># Pydantic</span>
 │   │   ├── repositories/
 │   │   ├── services/

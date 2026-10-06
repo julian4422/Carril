@@ -206,7 +206,7 @@ Ninguno.
 ## Lo que no pude verificar
 
 - **La carrera del healthcheck (H-8)** no se reprodujo; la deduje del comportamiento del entrypoint de postgres.
-- **El historial de git** no se pudo revisar en busca de secretos, porque el proyecto no es un repositorio git. Solo revisé el árbol actual.
+- **El historial de git** no se pudo revisar en busca de secretos, porque el proyecto no es un repositorio git. Solo revisé el árbol actual. *Actualización 5 oct 2026: el proyecto ya es un repositorio git; se revisó el historial (commit `3273bcb`) y `.env` nunca se subió. El único secreto es el de las pruebas unitarias (`unit-test-secret-…`).*
 - **Navegadores distintos de Chromium** y lectores de pantalla reales no se probaron. La accesibilidad se revisó por código (roles, aria-labels, `aria-live`, foco) y con el teclado en Playwright.
 - **La expiración real del JWT** tras 720 minutos no se esperó. Lo verifiqué con un token firmado con `exp` en el pasado (401) y con la lógica `expiresAt` del frontend.
 - **El drag & drop táctil en móvil** no se probó: la API nativa de HTML5 no lo soporta en la mayoría de navegadores móviles. El brief no lo exige y queda la alternativa por teclado.
