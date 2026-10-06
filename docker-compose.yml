@@ -31,6 +31,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env (ver .env.example)}
       JWT_EXPIRES_MINUTES: ${JWT_EXPIRES_MINUTES:-720}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4200}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:

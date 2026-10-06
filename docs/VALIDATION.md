@@ -209,7 +209,7 @@ Ninguno.
 - **El historial de git** no se pudo revisar en busca de secretos, porque el proyecto no es un repositorio git. Solo revisé el árbol actual. *Actualización 5 oct 2026: el proyecto ya es un repositorio git; se revisó el historial (commit `3273bcb`) y `.env` nunca se subió. El único secreto es el de las pruebas unitarias (`unit-test-secret-…`).*
 - **Navegadores distintos de Chromium** y lectores de pantalla reales no se probaron. La accesibilidad se revisó por código (roles, aria-labels, `aria-live`, foco) y con el teclado en Playwright.
 - **La expiración real del JWT** tras 720 minutos no se esperó. Lo verifiqué con un token firmado con `exp` en el pasado (401) y con la lógica `expiresAt` del frontend.
-- **El drag & drop táctil en móvil** no se probó: la API nativa de HTML5 no lo soporta en la mayoría de navegadores móviles. El brief no lo exige y queda la alternativa por teclado.
+- **El drag & drop táctil en móvil** no se probó: la API nativa de HTML5 no lo soporta en la mayoría de navegadores móviles. El brief no lo exige y queda la alternativa por teclado. *En v1.2 el arrastre pasó a Pointer Events con soporte táctil (`frontend/docs/MOBILE.md`).*
 
 Estado final: `db` y `api` arriba y healthy. El `ng serve` que lancé está detenido. Borré de `carril` los usuarios y tableros que creé en la validación (`*@carril-val.dev` y el tablero "Validación QA"). Los residuos de las suites e2e de los agentes siguen ahí (H-5).
 
@@ -241,4 +241,4 @@ Corrida final:
 
 Tras la corrida, la BD principal solo contiene el usuario demo.
 
-Pendiente conocido (bajo): un 500 no controlado no lleva cabeceras CORS (limitación de Starlette); el navegador lo ve como error de red en vez de mostrar el `detail`.
+~~Pendiente conocido (bajo): un 500 no controlado no lleva cabeceras CORS (limitación de Starlette); el navegador lo ve como error de red en vez de mostrar el `detail`.~~ Resuelto en v1.2 (5 oct 2026): `UnhandledErrorMiddleware` dentro de CORS (`backend/docs/ARCHITECTURE.md`).

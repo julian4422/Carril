@@ -60,15 +60,17 @@ No hay linters configurados.
 - Autorización: cada consulta filtra por dueño con un join hasta `boards.owner_id`. Un recurso ajeno o inexistente da el mismo 404. Excepciones documentadas: mover a una columna propia de otro tablero da 422, y una etiqueta que no es del tablero en `PUT /tasks/{id}/labels` da 422.
 - Reordenamiento: funciones puras en `services/ordering.py`. Antes de leer posiciones, los servicios bloquean la fila del tablero (`BoardRepository.lock`, `SELECT … FOR UPDATE`) y vuelven a resolver los recursos. Un `IntegrityError` residual se responde con 409.
 - Las relaciones ORM usan `lazy="raise"`: hay que cargar con `selectinload` de forma explícita. `GET /boards/{id}` hace un número fijo de consultas y hay una prueba que lo verifica.
+- Middlewares (de fuera a dentro): GZip → CORS → `UnhandledErrorMiddleware` → manejadores de excepciones. El de errores va dentro de CORS para que los 500 lleven cabeceras CORS.
 - Errores: los `DomainError` (`core/errors.py`) se traducen a `{"detail": ...}`. Todo error no controlado devuelve JSON: 500, o 503 si la BD no responde.
 - Pruebas de integración: se aíslan con TRUNCATE antes y después de cada prueba, no con rollback, porque cada petición hace su propio commit.
 
 ### Frontend (`frontend/src/app`)
-- Angular 19 con componentes standalone, signals, control flow nuevo e `inject()`. Prohibido: Angular Material/CDK, PrimeNG, Tailwind y Bootstrap. El drag & drop usa la API nativa de HTML5.
+- Angular 19 con componentes standalone, signals, control flow nuevo e `inject()`. Prohibido: Angular Material/CDK, PrimeNG, Tailwind, Bootstrap y librerías de gestos. El arrastre usa Pointer Events propios (ratón, dedo y lápiz; pulsación larga en táctil): lógica pura en `features/board/pointer-drag.logic.ts` y el gesto en `pointer-drag.ts`.
+- PWA (`@angular/service-worker`): el service worker solo cachea app shell y estáticos, nunca `/api/`. Detalle en `frontend/docs/MOBILE.md`.
 - `core/`: modelos del contrato, un servicio HTTP por recurso, interceptores (`auth` añade el Bearer a `/api/`; `error` cierra la sesión ante un 401 y muestra un toast con el `detail`) y guards.
 - El tablero usa `BoardStore` (signals), provisto en `BoardPageComponent`, con actualizaciones optimistas que se revierten si la API falla. La lógica pura está en `features/board/board.logic.ts`.
 - Pruebas: unitarias e integración simulan solo la red con `HttpTestingController`. El e2e usa el stack real y borra el usuario que crea.
 
 ## Documentación
 
-Cada proyecto tiene `docs/` (ARCHITECTURE, TESTING y, según el caso, API, DATA_DICTIONARY o ER). `docs/arquitectura.html` es la visión general y `docs/VALIDATION.md` el informe de validación con sus hallazgos. Si cambias el comportamiento, actualiza el `docs/` correspondiente y `docs/CONTRACT.md`.
+Cada proyecto tiene `docs/` (ARCHITECTURE, TESTING y, según el caso, API, DATA_DICTIONARY o ER). `docs/arquitectura.html` es la visión general y `docs/VALIDATION.md` el informe de validación con sus hallazgos. Despliegue en producción (mismo origen detrás de Caddy con HTTPS): `backend/docs/DEPLOYMENT.md`. Si cambias el comportamiento, actualiza el `docs/` correspondiente y `docs/CONTRACT.md`.
