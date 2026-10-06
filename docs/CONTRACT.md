@@ -96,3 +96,18 @@ CommentOut   { id, task_id, author: { id, full_name } | null, body, created_at }
 - Todo error no controlado responde JSON `{"detail": "Error interno"}` con 500 (o 503 si la BD no está disponible), nunca texto plano.
 - Campos de texto obligatorios (`name`, `title`, `body`, `full_name`) se recortan con `strip()` y no pueden quedar vacíos (422).
 - El límite WIP es informativo: se guarda y el frontend lo marca, pero la API no bloquea por él.
+
+## Móvil (v1.2)
+
+Alcance: Carril se usa desde el celular como **PWA instalable** construida sobre el mismo frontend Angular. En esta versión no hay app nativa ni publicación en tiendas.
+
+- **API:** no cambian endpoints ni tipos. Los cambios del backend son transparentes para el cliente:
+  - compresión GZip en respuestas de 1 KB o más;
+  - las respuestas 500 también llevan las cabeceras CORS, así que el navegador puede leer el `detail`;
+  - la API funciona detrás de un proxy inverso HTTPS (cabeceras `X-Forwarded-*`, configurable con `FORWARDED_ALLOW_IPS`).
+- **Topología de producción:** el build estático del frontend y la API se sirven desde el **mismo origen**. Un proxy inverso con HTTPS manda `/api` a la API y el resto a los archivos estáticos, con fallback a `index.html`. HTTPS es obligatorio porque el service worker lo exige. El frontend sigue usando URLs relativas `/api/v1/...`.
+- **Frontend:**
+  - Arrastre de tarjetas y columnas con Pointer Events (ratón, dedo y lápiz). Se mantiene la alternativa por teclado.
+  - Manifest y service worker de Angular (`@angular/service-worker`). El service worker **nunca cachea `/api/`**; solo el app shell y los estáticos.
+  - Aviso de "sin conexión" y aviso de nueva versión disponible.
+  - Diseño táctil: objetivos de 44 px o más y áreas seguras (`viewport-fit=cover`).
