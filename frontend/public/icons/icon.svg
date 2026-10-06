@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Carril: dos rieles con traviesas y una tarjeta que avanza por ellos. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#138377"/>
+      <stop offset="1" stop-color="#0b564d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <g stroke-linecap="round">
+    <path d="M168 196h176M168 316h176M168 436h176" stroke="#7fd1c3" stroke-width="26" opacity=".85"/>
+    <path d="M168 76v360M344 76v360" stroke="#f4f2ec" stroke-width="34"/>
+  </g>
+  <rect x="190" y="96" width="132" height="92" rx="20" fill="#f0b429"/>
+  <path d="M220 130h72M220 156h44" stroke="#5a3d00" stroke-width="14" stroke-linecap="round"/>
+</svg>

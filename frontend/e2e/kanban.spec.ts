@@ -1,40 +1,18 @@
-import { execFileSync } from 'node:child_process';
-import * as path from 'node:path';
 import { expect, test } from '@playwright/test';
+import { deleteUser, registerViaUi, uniqueEmail } from './support';
 
-const ROOT = path.resolve(__dirname, '..', '..');
 const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-const email = `e2e+${stamp}@carril-e2e.dev`;
+const email = uniqueEmail('');
 
-/** Ejecuta SQL en la BD principal vía el contenedor db (desde la raíz del repo). */
-function psql(sql: string): string {
-  return execFileSync(
-    'docker', ['compose', 'exec', '-T', 'db', 'psql', '-U', 'carril', '-d', 'carril', '-tA', '-c', sql],
-    { cwd: ROOT, encoding: 'utf8' },
-  ).trim();
-}
-
-// Limpieza: primero los tableros del usuario (CASCADE a columnas/tarjetas/etiquetas/comentarios), luego el usuario.
-test.afterAll(() => {
-  const owner = `(SELECT id FROM users WHERE email = '${email}')`;
-  psql(`DELETE FROM boards WHERE owner_id = ${owner}`);
-  psql(`DELETE FROM users WHERE email = '${email}'`);
-});
-
+// Limpieza: borra el usuario creado y sus tableros.
+test.afterAll(() => deleteUser(email));
 
 /** Flujo completo contra la API real. Usuario único por corrida. */
 test('registro, tablero, tarjetas, drag & drop, detalle y borrado', async ({ page }) => {
   const boardName = `Tablero E2E ${stamp}`;
 
   // --- registro ---
-  await page.goto('/');
-  await expect(page).toHaveURL(/\/login$/);
-  await page.getByRole('link', { name: 'Regístrate' }).click();
-  await page.getByLabel('Nombre completo').fill('Usuario E2E');
-  await page.getByLabel('Correo electrónico').fill(email);
-  await page.getByLabel('Contraseña').fill('clave-segura-123');
-  await page.getByRole('button', { name: 'Crear cuenta' }).click();
-  await expect(page).toHaveURL(/\/boards$/);
+  await registerViaUi(page, email);
   await expect(page.getByRole('heading', { name: 'Aún no tienes tableros' })).toBeVisible();
 
   // --- crear tablero: 3 columnas por defecto ---
@@ -59,7 +37,7 @@ test('registro, tablero, tarjetas, drag & drop, detalle y borrado', async ({ pag
   }
   await expect(todo.locator('app-task-card')).toHaveCount(2);
 
-  // --- arrastrar una tarjeta a "En curso" ---
+  // --- arrastrar una tarjeta a "En curso" con el ratón (Pointer Events) ---
   const card = todo.locator('.item', { hasText: 'Escribir pruebas' });
   await card.dragTo(doing.locator('.list'));
   await expect(doing.locator('app-task-card', { hasText: 'Escribir pruebas' })).toBeVisible();

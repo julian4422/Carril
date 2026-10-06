@@ -15,7 +15,11 @@ import { ToastService } from './toast.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
-    .stack { position: fixed; z-index: 100; right: 1rem; bottom: 1rem; display: grid; gap: .5rem; width: min(24rem, calc(100vw - 2rem)); }
+    .stack {
+      position: fixed; z-index: 100; display: grid; gap: .5rem;
+      right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom));
+      width: min(24rem, calc(100vw - 2rem));
+    }
     .toast {
       display: flex; gap: .75rem; align-items: flex-start; justify-content: space-between;
       padding: .7rem .9rem; border-radius: var(--radius-sm); background: var(--surface); color: var(--text);
@@ -24,7 +28,7 @@ import { ToastService } from './toast.service';
     .toast[data-kind='error'] { border-left-color: var(--danger); }
     .toast[data-kind='success'] { border-left-color: var(--accent); }
     .toast[data-kind='info'] { border-left-color: var(--prio-medium); }
-    button { background: none; border: 0; color: var(--text-muted); font-size: 1.2rem; line-height: 1; cursor: pointer; }
+    button { background: none; border: 0; color: var(--text-muted); font-size: 1.2rem; line-height: 1; cursor: pointer; min-width: 44px; min-height: 44px; margin: -.6rem -.8rem -.6rem 0; }
   `,
 })
 export class ToastContainerComponent {

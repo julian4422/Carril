@@ -11,6 +11,8 @@ import { InputComponent } from '../../shared/ui/input.component';
 import { ModalComponent } from '../../shared/ui/modal.component';
 import { PluralPipe } from '../../shared/pipes/plural.pipe';
 import { dropIndex } from './board.logic';
+import { AutoScrollTarget, PointerDragSession } from './pointer-drag';
+import { dropTarget, pickColumn } from './pointer-drag.logic';
 import { BoardStore } from './board.store';
 import { TaskCardComponent } from './task-card.component';
 import { TaskDetailComponent } from './task-detail.component';
@@ -64,8 +66,12 @@ export class BoardPageComponent {
     wip: ['', [Validators.pattern(/^([1-9]\d{0,3})?$/)]],
   });
 
+  private session: PointerDragSession | null = null;
+
   constructor() {
-    this.route.paramMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((p) => {
+    const destroyRef = inject(DestroyRef);
+    destroyRef.onDestroy(() => this.session?.dispose());
+    this.route.paramMap.pipe(takeUntilDestroyed(destroyRef)).subscribe((p) => {
       const id = p.get('id');
       if (id) void this.store.load(id);
     });
@@ -157,80 +163,109 @@ export class BoardPageComponent {
     if (ok) this.deletingColumn.set(null);
   }
 
-  // ---------- drag & drop: tarjetas ----------
-  protected onTaskDragStart(ev: DragEvent, task: TaskOut): void {
-    ev.stopPropagation();
-    if (ev.dataTransfer) {
-      ev.dataTransfer.effectAllowed = 'move';
-      ev.dataTransfer.setData('text/plain', task.id);
+  // ---------- arrastre con Pointer Events (ratón, dedo y lápiz) ----------
+  protected onTaskPointerDown(ev: PointerEvent, task: TaskOut): void {
+    if (!this.canStartDrag(ev)) return;
+    this.startDrag(ev, ev.currentTarget as HTMLElement, false, { kind: 'task', id: task.id });
+  }
+
+  protected onColumnPointerDown(ev: PointerEvent, col: ColumnOut): void {
+    const target = ev.target as HTMLElement;
+    if (!this.canStartDrag(ev) || target.closest('.menu')) return;
+    const column = (ev.currentTarget as HTMLElement).closest<HTMLElement>('.column');
+    if (!column) return;
+    this.startDrag(ev, column, !!target.closest('.grip'), { kind: 'column', id: col.id });
+  }
+
+  private canStartDrag(ev: PointerEvent): boolean {
+    if (this.session && this.session.phase !== 'done') return false;
+    if (!ev.isPrimary) return false;
+    return ev.pointerType !== 'mouse' || ev.button === 0;
+  }
+
+  private startDrag(ev: PointerEvent, element: HTMLElement, fromHandle: boolean, state: NonNullable<DragState>): void {
+    this.session = new PointerDragSession(
+      ev,
+      {
+        start: () => this.drag.set(state),
+        move: (x, y) => (state.kind === 'task' ? this.hintTask(state.id, x, y) : this.hintColumn(state.id, x)),
+        drop: () => this.dropDragged(),
+        cancel: () => this.endDrag(),
+        scrollers: (x) => this.autoScrollTargets(x, state.kind),
+      },
+      { element, fromHandle },
+    );
+  }
+
+  private columnEls(): HTMLElement[] {
+    return Array.from(this.host.nativeElement.querySelectorAll<HTMLElement>('.columns > .column'));
+  }
+
+  private columnUnder(x: number): HTMLElement | null {
+    const els = this.columnEls();
+    const id = pickColumn(x, els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { id: el.dataset['columnId']!, left: r.left, right: r.right };
+    }));
+    return els.find((el) => el.dataset['columnId'] === id) ?? null;
+  }
+
+  private hintTask(taskId: string, x: number, y: number): void {
+    const colEl = this.columnUnder(x);
+    if (!colEl) {
+      this.taskHint.set(null);
+      return;
     }
-    this.drag.set({ kind: 'task', id: task.id });
-  }
-
-  protected onTaskDragOver(ev: DragEvent, col: ColumnOut, task: TaskOut): void {
-    if (this.drag()?.kind !== 'task') return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
-    const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-    this.taskHint.set({ columnId: col.id, taskId: task.id, after: ev.clientY > rect.top + rect.height / 2 });
-  }
-
-  protected onTaskDrop(ev: DragEvent, col: ColumnOut, task: TaskOut): void {
-    const d = this.drag();
-    if (d?.kind !== 'task') return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    const after = this.taskHint()?.after ?? false;
-    this.endDrag();
-    if (d.id === task.id) return;
-    const idx = dropIndex(col.tasks.map((t) => t.id), d.id, task.id, after);
-    void this.moveTask(d.id, col, idx);
-  }
-
-  protected onListDragOver(ev: DragEvent, col: ColumnOut): void {
-    if (this.drag()?.kind !== 'task') return;
-    ev.preventDefault();
-    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
-    this.taskHint.set({ columnId: col.id, taskId: null, after: true });
-  }
-
-  protected onListDrop(ev: DragEvent, col: ColumnOut): void {
-    const d = this.drag();
-    if (d?.kind !== 'task') return;
-    ev.preventDefault();
-    this.endDrag();
-    const idx = dropIndex(col.tasks.map((t) => t.id), d.id, null, true);
-    void this.moveTask(d.id, col, idx);
-  }
-
-  // ---------- drag & drop: columnas ----------
-  protected onColumnDragStart(ev: DragEvent, col: ColumnOut): void {
-    if (this.drag()?.kind === 'task') return;
-    if (ev.dataTransfer) {
-      ev.dataTransfer.effectAllowed = 'move';
-      ev.dataTransfer.setData('text/plain', col.id);
+    const items = Array.from(colEl.querySelectorAll<HTMLElement>('.list > .item'))
+      .filter((el) => el.dataset['taskId'] !== taskId)
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return { id: el.dataset['taskId']!, start: r.top, size: r.height };
+      });
+    const hint = dropTarget(y, items);
+    const next = { columnId: colEl.dataset['columnId']!, taskId: hint.id, after: hint.after };
+    const prev = this.taskHint();
+    if (!prev || prev.columnId !== next.columnId || prev.taskId !== next.taskId || prev.after !== next.after) {
+      this.taskHint.set(next);
     }
-    this.drag.set({ kind: 'column', id: col.id });
   }
 
-  protected onColumnDragOver(ev: DragEvent, col: ColumnOut): void {
-    const d = this.drag();
-    if (d?.kind !== 'column' || d.id === col.id) return;
-    ev.preventDefault();
-    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
-    const rect = (ev.currentTarget as HTMLElement).getBoundingClientRect();
-    this.columnHint.set({ id: col.id, after: ev.clientX > rect.left + rect.width / 2 });
+  private hintColumn(columnId: string, x: number): void {
+    const spans = this.columnEls()
+      .filter((el) => el.dataset['columnId'] !== columnId)
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        return { id: el.dataset['columnId']!, start: r.left, size: r.width };
+      });
+    const hint = dropTarget(x, spans);
+    const prev = this.columnHint();
+    if (hint.id === null) this.columnHint.set(null);
+    else if (!prev || prev.id !== hint.id || prev.after !== hint.after) this.columnHint.set({ id: hint.id, after: hint.after });
   }
 
-  protected onColumnDrop(ev: DragEvent, col: ColumnOut): void {
+  private autoScrollTargets(x: number, kind: 'task' | 'column'): AutoScrollTarget[] {
+    const targets: AutoScrollTarget[] = [];
+    const board = this.host.nativeElement.querySelector('.columns');
+    if (board) targets.push({ el: board, axis: 'x' });
+    const list = kind === 'task' ? this.columnUnder(x)?.querySelector('.list') : null;
+    if (list) targets.push({ el: list, axis: 'y' });
+    return targets;
+  }
+
+  private dropDragged(): void {
     const d = this.drag();
-    if (d?.kind !== 'column' || d.id === col.id) return;
-    ev.preventDefault();
-    const after = this.columnHint()?.after ?? false;
+    const taskHint = this.taskHint();
+    const columnHint = this.columnHint();
     this.endDrag();
-    const idx = dropIndex(this.store.columns().map((c) => c.id), d.id, col.id, after);
-    void this.moveColumn(d.id, idx);
+    if (d?.kind === 'task' && taskHint) {
+      const col = this.store.columns().find((c) => c.id === taskHint.columnId);
+      if (!col) return;
+      const idx = dropIndex(col.tasks.map((t) => t.id), d.id, taskHint.taskId, taskHint.after);
+      void this.moveTask(d.id, col, idx);
+    } else if (d?.kind === 'column' && columnHint) {
+      const idx = dropIndex(this.store.columns().map((c) => c.id), d.id, columnHint.id, columnHint.after);
+      void this.moveColumn(d.id, idx);
+    }
   }
 
   protected endDrag(): void {

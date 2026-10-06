@@ -8,7 +8,7 @@
 </ui-app-header>
 
 <p id="dnd-help" class="visually-hidden">
-  Arrastra la tarjeta a otra posición o columna. Con el teclado, mantén Alt y usa las flechas para moverla; Enter abre el detalle.
+  Arrastra la tarjeta a otra posición o columna; en pantallas táctiles, mantén pulsado un momento antes de arrastrar. Con el teclado, mantén Alt y usa las flechas para moverla; Enter abre el detalle.
 </p>
 <div class="visually-hidden" role="status" aria-live="polite">{{ announcement() }}</div>
 
@@ -39,7 +39,7 @@
       }
     </section>
 
-    <div class="columns">
+    <div class="columns" [class.is-dragging]="drag() !== null">
       @for (v of store.view(); track v.column.id) {
         @let col = v.column;
         <section
@@ -50,10 +50,8 @@
           [class.dragging]="drag()?.kind === 'column' && drag()?.id === col.id"
           [attr.data-column-id]="col.id"
           [attr.aria-labelledby]="'col-title-' + col.id"
-          (dragover)="onColumnDragOver($event, col)"
-          (drop)="onColumnDrop($event, col)"
         >
-          <header class="col-head" draggable="true" (dragstart)="onColumnDragStart($event, col)" (dragend)="endDrag()">
+          <header class="col-head" (pointerdown)="onColumnPointerDown($event, col)">
             <button
               type="button" class="grip" [attr.aria-label]="'Mover columna ' + col.name + '. Alt más flechas izquierda o derecha'"
               (keydown)="onColumnKeydown($event, col)"
@@ -72,16 +70,14 @@
           <div
             class="list" role="list"
             [class.drop-end]="taskHint()?.columnId === col.id && taskHint()!.taskId === null"
-            (dragover)="onListDragOver($event, col)" (drop)="onListDrop($event, col)"
           >
             @for (task of v.tasks; track task.id) {
               <div
-                class="item" role="listitem" draggable="true" [attr.data-task-id]="task.id"
+                class="item" role="listitem" [attr.data-task-id]="task.id"
                 [class.dragging]="drag()?.kind === 'task' && drag()?.id === task.id"
                 [class.drop-before]="taskHint()?.taskId === task.id && !taskHint()!.after"
                 [class.drop-after]="taskHint()?.taskId === task.id && taskHint()!.after"
-                (dragstart)="onTaskDragStart($event, task)" (dragend)="endDrag()"
-                (dragover)="onTaskDragOver($event, col, task)" (drop)="onTaskDrop($event, col, task)"
+                (pointerdown)="onTaskPointerDown($event, task)"
                 (keydown)="onCardKeydown($event, col, task)"
               >
                 <app-task-card [task]="task" [columnName]="col.name" [assigneeName]="assigneeName(task)" (open)="selectedTaskId.set(task.id)" />

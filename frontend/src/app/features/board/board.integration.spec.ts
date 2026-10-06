@@ -5,6 +5,7 @@ import { ToastService } from '../../shared/ui/toast.service';
 import { TestBed } from '@angular/core/testing';
 import { $, $$, settle, setupIntegration } from '../../integration-helpers';
 import { LABEL, makeBoard, makeTask } from '../../testing';
+import { LONG_PRESS_MS } from './pointer-drag.logic';
 
 async function openBoard(board: BoardDetail = makeBoard()) {
   const { http } = setupIntegration(true);
@@ -17,10 +18,41 @@ async function openBoard(board: BoardDetail = makeBoard()) {
 const titles = (h: RouterTestingHarness, colId: string) =>
   $$(h, `[data-column-id="${colId}"] app-task-card .title`).map((e) => e.textContent!.trim());
 
-function drag(type: string, target: Element, init: { clientY?: number; clientX?: number; dt?: DataTransfer } = {}) {
-  const ev = new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: init.dt, clientX: init.clientX, clientY: init.clientY });
-  target.dispatchEvent(ev);
-  return ev;
+type PointerKind = 'mouse' | 'touch' | 'pen';
+
+/** Despacha un PointerEvent sintético (como los que genera el navegador para ratón, dedo o lápiz). */
+function ptr(type: string, target: EventTarget, x: number, y: number, pointerType: PointerKind) {
+  target.dispatchEvent(new PointerEvent(type, {
+    bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y,
+    pointerId: 7, pointerType, isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1,
+  }));
+}
+
+const center = (el: Element) => {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Arrastra `source` hasta (x, y). Con el dedo o el lápiz espera la pulsación larga antes de
+ * moverse; con el ratón basta superar el umbral. No suelta: devuelve `drop()` para hacerlo.
+ */
+async function pointerDrag(h: RouterTestingHarness, source: Element, to: () => { x: number; y: number }, pointerType: PointerKind) {
+  const from = center(source);
+  ptr('pointerdown', source, from.x, from.y, pointerType);
+  if (pointerType !== 'mouse') await wait(LONG_PRESS_MS + 40);
+  ptr('pointermove', source, from.x + 2, from.y + 8, pointerType);
+  await settle(h);
+  const p = to();
+  ptr('pointermove', document, p.x, p.y, pointerType);
+  await settle(h);
+  return {
+    drop: async () => {
+      ptr('pointerup', document, p.x, p.y, pointerType);
+      await settle(h);
+    },
+  };
 }
 
 describe('Tablero (integración)', () => {
@@ -43,57 +75,131 @@ describe('Tablero (integración)', () => {
     expect($(harness, '[role="alert"]').textContent).toContain('Tablero no encontrado');
   });
 
-  it('arrastrar una tarjeta a otra columna llama a /move con column_id y position', async () => {
-    const { http, harness } = await openBoard();
-    const dt = new DataTransfer();
-    const card = $(harness, '[data-task-id="t1"]');
-    drag('dragstart', card, { dt });
-    const target = $(harness, '[data-task-id="t4"]');
-    const rect = target.getBoundingClientRect();
-    drag('dragover', target, { dt, clientY: rect.top + 1 });
-    await settle(harness);
-    expect(target.classList).toContain('drop-before');
-    drag('drop', target, { dt });
-    // optimista: ya está en la columna destino antes de que responda la API
-    await settle(harness);
-    expect(titles(harness, 'c2')).toEqual(['Tarea t1', 'Tarea t4']);
-    const req = http.expectOne('/api/v1/tasks/t1/move');
-    expect(req.request.body).toEqual({ column_id: 'c2', position: 0 });
-    req.flush(makeTask('t1', 'c2', 0));
-    await settle(harness);
-    expect(titles(harness, 'c1')).toEqual(['Tarea t2', 'Tarea t3']);
-  });
+  describe('arrastre con Pointer Events', () => {
+    it('con el dedo (pulsación larga) mueve una tarjeta a otra columna y llama a /move', async () => {
+      const { http, harness } = await openBoard();
+      const t4 = $(harness, '[data-task-id="t4"]');
+      const gesture = await pointerDrag(harness, $(harness, '[data-task-id="t1"]'), () => {
+        const r = t4.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + 2 };
+      }, 'touch');
+      // fantasma, indicador de inserción y origen atenuado
+      expect(document.querySelector('.drag-ghost')).not.toBeNull();
+      expect(t4.classList).toContain('drop-before');
+      expect($(harness, '[data-task-id="t1"]').classList).toContain('dragging');
+      await gesture.drop();
+      expect(document.querySelector('.drag-ghost')).toBeNull();
+      // optimista: ya está en la columna destino antes de que responda la API
+      expect(titles(harness, 'c2')).toEqual(['Tarea t1', 'Tarea t4']);
+      const req = http.expectOne('/api/v1/tasks/t1/move');
+      expect(req.request.body).toEqual({ column_id: 'c2', position: 0 });
+      req.flush(makeTask('t1', 'c2', 0));
+      await settle(harness);
+      expect(titles(harness, 'c1')).toEqual(['Tarea t2', 'Tarea t3']);
+      expect($(harness, '[aria-live="polite"]').textContent).toContain('Tarea t1 movida a Col c2, posición 1');
+    });
 
-  it('soltar sobre el área vacía de una columna agrega la tarjeta al final', async () => {
-    const { http, harness } = await openBoard();
-    const dt = new DataTransfer();
-    drag('dragstart', $(harness, '[data-task-id="t2"]'), { dt });
-    const list = $(harness, '[data-column-id="c3"] .list');
-    drag('dragover', list, { dt });
-    drag('drop', list, { dt });
-    const req = http.expectOne('/api/v1/tasks/t2/move');
-    expect(req.request.body).toEqual({ column_id: 'c3', position: 0 });
-    req.flush(makeTask('t2', 'c3', 0));
-    await settle(harness);
-    expect(titles(harness, 'c3')).toEqual(['Tarea t2']);
-  });
+    it('con el dedo reordena en la misma columna y revierte si la API responde 500', async () => {
+      const { http, harness } = await openBoard();
+      const t3 = $(harness, '[data-task-id="t3"]');
+      const gesture = await pointerDrag(harness, $(harness, '[data-task-id="t1"]'), () => {
+        const r = t3.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.bottom - 1 };
+      }, 'touch');
+      expect(t3.classList).toContain('drop-after');
+      await gesture.drop();
+      expect(titles(harness, 'c1')).toEqual(['Tarea t2', 'Tarea t3', 'Tarea t1']);
+      const req = http.expectOne('/api/v1/tasks/t1/move');
+      expect(req.request.body).toEqual({ column_id: 'c1', position: 2 });
+      req.flush({ detail: 'No se pudo mover' }, { status: 500, statusText: 'Server Error' });
+      await settle(harness);
+      expect(titles(harness, 'c1')).toEqual(['Tarea t1', 'Tarea t2', 'Tarea t3']);
+      expect(TestBed.inject(ToastService).toasts()[0].message).toBe('No se pudo mover');
+      expect($(harness, '[aria-live="polite"]').textContent).toContain('se restauró su lugar');
+    });
 
-  it('reordena dentro de la misma columna y revierte si la API falla', async () => {
-    const { http, harness } = await openBoard();
-    const dt = new DataTransfer();
-    drag('dragstart', $(harness, '[data-task-id="t1"]'), { dt });
-    const t3 = $(harness, '[data-task-id="t3"]');
-    const r = t3.getBoundingClientRect();
-    drag('dragover', t3, { dt, clientY: r.bottom - 1 });
-    drag('drop', t3, { dt });
-    await settle(harness);
-    expect(titles(harness, 'c1')).toEqual(['Tarea t2', 'Tarea t3', 'Tarea t1']);
-    const req = http.expectOne('/api/v1/tasks/t1/move');
-    expect(req.request.body).toEqual({ column_id: 'c1', position: 2 });
-    req.flush({ detail: 'No se pudo mover' }, { status: 500, statusText: 'Server Error' });
-    await settle(harness);
-    expect(titles(harness, 'c1')).toEqual(['Tarea t1', 'Tarea t2', 'Tarea t3']);
-    expect(TestBed.inject(ToastService).toasts()[0].message).toBe('No se pudo mover');
+    it('con el dedo reordena columnas (PUT columns/order) y revierte ante un 500', async () => {
+      const { http, harness } = await openBoard();
+      const c1 = $(harness, '[data-column-id="c1"]');
+      const gesture = await pointerDrag(harness, $(harness, '[data-column-id="c3"] .col-head h2'), () => {
+        const r = c1.getBoundingClientRect();
+        return { x: r.left + 4, y: r.top + 20 };
+      }, 'touch');
+      expect(c1.classList).toContain('col-before');
+      expect($(harness, '.columns').classList).toContain('is-dragging');
+      await gesture.drop();
+      const order = () => $$(harness, '.column').map((c) => c.dataset['columnId']);
+      expect(order()).toEqual(['c3', 'c1', 'c2']);
+      const req = http.expectOne('/api/v1/boards/b1/columns/order');
+      expect(req.request.body).toEqual({ column_ids: ['c3', 'c1', 'c2'] });
+      req.flush({ detail: 'Error interno' }, { status: 500, statusText: 'Server Error' });
+      await settle(harness);
+      expect(order()).toEqual(['c1', 'c2', 'c3']);
+    });
+
+    it('con el ratón: arrastra una tarjeta al área vacía de una columna (al final)', async () => {
+      const { http, harness } = await openBoard();
+      const list = $(harness, '[data-column-id="c3"] .list');
+      const gesture = await pointerDrag(harness, $(harness, '[data-task-id="t2"]'), () => center(list), 'mouse');
+      expect(list.classList).toContain('drop-end');
+      await gesture.drop();
+      const req = http.expectOne('/api/v1/tasks/t2/move');
+      expect(req.request.body).toEqual({ column_id: 'c3', position: 0 });
+      req.flush(makeTask('t2', 'c3', 0));
+      await settle(harness);
+      expect(titles(harness, 'c3')).toEqual(['Tarea t2']);
+    });
+
+    it('con el ratón: reordena columnas desde el asa', async () => {
+      const { http, harness } = await openBoard();
+      const c3 = $(harness, '[data-column-id="c3"]');
+      const gesture = await pointerDrag(harness, $(harness, '[data-column-id="c1"] .grip'), () => {
+        const r = c3.getBoundingClientRect();
+        return { x: r.right - 4, y: r.top + 20 };
+      }, 'mouse');
+      expect(c3.classList).toContain('col-after');
+      await gesture.drop();
+      const req = http.expectOne('/api/v1/boards/b1/columns/order');
+      expect(req.request.body).toEqual({ column_ids: ['c2', 'c3', 'c1'] });
+      req.flush([]);
+    });
+
+    it('si el dedo se mueve antes de la pulsación larga es un scroll: no arrastra', async () => {
+      const { http, harness } = await openBoard();
+      const card = $(harness, '[data-task-id="t1"]');
+      const { x, y } = center(card);
+      ptr('pointerdown', card, x, y, 'touch');
+      ptr('pointermove', card, x, y + 40, 'touch');
+      await wait(LONG_PRESS_MS + 40);
+      ptr('pointermove', document, x + 300, y + 40, 'touch');
+      ptr('pointerup', document, x + 300, y + 40, 'touch');
+      await settle(harness);
+      expect(document.querySelector('.drag-ghost')).toBeNull();
+      expect(card.classList).not.toContain('dragging');
+      http.expectNone('/api/v1/tasks/t1/move');
+    });
+
+    it('Esc cancela el arrastre y el click tras soltar no abre el detalle', async () => {
+      const { http, harness } = await openBoard();
+      const t4 = $(harness, '[data-task-id="t4"]');
+      const gesture = await pointerDrag(harness, $(harness, '[data-task-id="t1"]'), () => center(t4), 'pen');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      await settle(harness);
+      expect(document.querySelector('.drag-ghost')).toBeNull();
+      expect(t4.classList).not.toContain('drop-before');
+      expect(t4.classList).not.toContain('drop-after');
+      await gesture.drop();
+      http.expectNone('/api/v1/tasks/t1/move');
+
+      // arrastre completo (sin cambio de lugar) seguido del click sintético del navegador
+      const t2 = $(harness, '[data-task-id="t2"]');
+      const again = await pointerDrag(harness, t2, () => center(t2), 'mouse');
+      await again.drop();
+      $<HTMLElement>(harness, '[data-task-id="t2"] [role="button"]').click();
+      await settle(harness);
+      expect($$(harness, '[role="dialog"]').length).toBe(0);
+      http.expectNone('/api/v1/tasks/t2/comments');
+    });
   });
 
   it('mueve una tarjeta con el teclado (Alt + flecha) y lo anuncia', async () => {
@@ -109,20 +215,6 @@ describe('Tablero (integración)', () => {
     // Alt+Arriba dentro de la columna
     $(harness, '[data-task-id="t2"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
     expect(http.expectOne('/api/v1/tasks/t2/move').request.body).toEqual({ column_id: 'c2', position: 0 });
-  });
-
-  it('reordena columnas arrastrando y llama a PUT columns/order', async () => {
-    const { http, harness } = await openBoard();
-    const dt = new DataTransfer();
-    drag('dragstart', $(harness, '[data-column-id="c3"] .col-head'), { dt });
-    const c1 = $(harness, '[data-column-id="c1"]');
-    drag('dragover', c1, { dt, clientX: c1.getBoundingClientRect().left + 1 });
-    drag('drop', c1, { dt });
-    const req = http.expectOne('/api/v1/boards/b1/columns/order');
-    expect(req.request.body).toEqual({ column_ids: ['c3', 'c1', 'c2'] });
-    req.flush([]);
-    await settle(harness);
-    expect($$(harness, '.column').map((c) => c.dataset['columnId'])).toEqual(['c3', 'c1', 'c2']);
   });
 
   it('filtra por texto y por prioridad', async () => {

@@ -23,6 +23,10 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
       white-space: nowrap;
     }
     :host([data-size='sm']) { padding: .3rem .65rem; font-size: .85rem; }
+    @media (pointer: coarse), (max-width: 640px) {
+      :host { min-height: 44px; }
+      :host([data-size='sm']) { min-height: 44px; padding-inline: .8rem; }
+    }
     :host(:active:not(:disabled)) { transform: translateY(1px); }
     :host(:disabled) { opacity: .55; cursor: not-allowed; }
     :host([data-variant='primary']) { background: var(--accent); color: var(--accent-contrast); }

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Versión maskable: fondo a sangre y dibujo dentro de la zona segura (círculo de radio 40 %). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#138377"/>
+      <stop offset="1" stop-color="#0b564d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(256 256) scale(.74) translate(-256 -256)">
+    <g stroke-linecap="round">
+      <path d="M168 196h176M168 316h176M168 436h176" stroke="#7fd1c3" stroke-width="26" opacity=".85"/>
+      <path d="M168 76v360M344 76v360" stroke="#f4f2ec" stroke-width="34"/>
+    </g>
+    <rect x="190" y="96" width="132" height="92" rx="20" fill="#f0b429"/>
+    <path d="M220 130h72M220 156h44" stroke="#5a3d00" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>

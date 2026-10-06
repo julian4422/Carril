@@ -1,6 +1,6 @@
 # Carril · frontend
 
-Interfaz en español de un gestor de tareas Kanban. Angular 19 "puro": componentes standalone, signals, nuevo control flow, `inject()`, Reactive Forms, interceptores y guards funcionales. Sin Angular Material/CDK, PrimeNG, Tailwind ni Bootstrap; el drag & drop usa la API nativa de HTML5.
+Interfaz en español de un gestor de tareas Kanban. Angular 19 "puro": componentes standalone, signals, nuevo control flow, `inject()`, Reactive Forms, interceptores y guards funcionales. Sin Angular Material/CDK, PrimeNG, Tailwind ni Bootstrap. El arrastre usa Pointer Events (ratón, dedo y lápiz), sin librerías de gestos. Es una **PWA** instalable (`@angular/service-worker`, el paquete oficial): ver [MOBILE.md](MOBILE.md).
 
 ## Requisitos
 
@@ -23,9 +23,10 @@ npm start               # ng serve en :4200
 | Script | Qué hace |
 |---|---|
 | `npm start` | `ng serve` en :4200 |
-| `npm run build` | build de producción en `dist/` |
+| `npm run build` | build de producción en `dist/` (incluye `ngsw.json`, `ngsw-worker.js` y `manifest.webmanifest`) |
 | `npm run test:unit` | pruebas unitarias, una vez, headless, con cobertura (umbral de líneas 80 %) |
 | `npm run test:integration` | solo `*.integration.spec.ts` |
-| `npm run test:e2e` | Playwright contra el stack real (requiere API en :8000) |
+| `npm run test:e2e` | Playwright contra el stack real (requiere API en :8000): proyectos `chromium` (escritorio) y `mobile` (Pixel 7, táctil) |
+| `npm run icons` | regenera los PNG de la PWA y `favicon.ico` a partir de los SVG |
 
-Ver [TESTING.md](TESTING.md) y [ARCHITECTURE.md](ARCHITECTURE.md).
+Ver [TESTING.md](TESTING.md), [ARCHITECTURE.md](ARCHITECTURE.md) y [MOBILE.md](MOBILE.md) (instalar la PWA, service worker y cómo probarla en local con el build de producción).
