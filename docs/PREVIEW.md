@@ -15,6 +15,9 @@ celular ──Tailscale (WireGuard, HTTPS)──> tailscale serve :443 ──> 1
 3. `tailscale --socket=$HOME/.local/share/tailscale/tailscaled.sock up --hostname=carril-mac` y abrir el link de login.
 4. Activar HTTPS en la tailnet: el primer `tailscale serve` da el link. **No** activar Funnel.
 5. Instalar Tailscale en el celular con la misma cuenta.
+6. **Shields up** en la Mac: `tailscale --socket=$HOME/.local/share/tailscale/tailscaled.sock set --shields-up=true`.
+   En modo usuario, Tailscale reenvía a la Mac **cualquier** puerto abierto (5432 de Postgres, 8000 de la API y los de otros proyectos). Shields up los bloquea y deja pasar solo lo publicado con `tailscale serve`.
+   Comprobación desde el celular: `http://<IP tailscale de la Mac>:8000/api/v1/health` no debe cargar, y la URL `https://…ts.net` sí.
 
 ## Uso
 
@@ -42,5 +45,6 @@ launchctl bootout gui/$(id -u)/com.tailscale.tailscaled-user   # apaga Tailscale
 ## Notas
 
 - La Mac debe estar encendida y con Docker corriendo.
+- Si algún día añades otras personas a la tailnet, restringe además el acceso con la política de Tailscale (por ejemplo, un grant de `autogroup:member` a `autogroup:self` solo con `tcp:443`).
 - Es una vista previa de prueba: existe el usuario demo (`demo@carril.dev` / `demo1234`) y el registro está abierto. No lo publiques con `funnel`; para producción, ver `backend/docs/DEPLOYMENT.md`.
 - El puerto 8088 es el valor por defecto de `WEB_PORT`; se cambia en `.env`.

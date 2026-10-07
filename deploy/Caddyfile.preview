@@ -1,6 +1,10 @@
 # Vista previa local de producción: build estático del frontend + /api a la API, mismo origen.
 # HTTPS lo pone Tailscale (`tailscale serve`); Caddy solo escucha HTTP en el contenedor.
 :80 {
+	log {
+		output stdout
+		format console
+	}
 	encode zstd gzip
 
 	handle /api/* {
