@@ -1,0 +1,20 @@
+# Vista previa local de producción: build estático del frontend + /api a la API, mismo origen.
+# HTTPS lo pone Tailscale (`tailscale serve`); Caddy solo escucha HTTP en el contenedor.
+:80 {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv/carril
+		try_files {path} /index.html
+		file_server
+	}
+
+	@nocache path / /index.html /ngsw.json /ngsw-worker.js /safety-worker.js /manifest.webmanifest
+	header @nocache Cache-Control "no-cache"
+	@hashed path_regexp \.[0-9a-f]{16,}\.(js|css|woff2?)$
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+}

@@ -43,5 +43,22 @@ services:
       timeout: 3s
       retries: 10
 
+  # Vista previa de producción (PWA) en 127.0.0.1:8088. Solo con: docker compose --profile preview up -d
+  # Requiere el build del frontend (cd frontend && npm run build). Ver docs/PREVIEW.md.
+  web:
+    image: caddy:2
+    profiles: [preview]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8088}:80"
+    volumes:
+      - ./deploy/Caddyfile.preview:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist/frontend/browser:/srv/carril:ro
+      - caddy_data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
+  caddy_data:

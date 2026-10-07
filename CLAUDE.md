@@ -73,4 +73,4 @@ No hay linters configurados.
 
 ## Documentación
 
-Cada proyecto tiene `docs/` (ARCHITECTURE, TESTING y, según el caso, API, DATA_DICTIONARY o ER). `docs/arquitectura.html` es la visión general y `docs/VALIDATION.md` el informe de validación con sus hallazgos. Despliegue en producción (mismo origen detrás de Caddy con HTTPS): `backend/docs/DEPLOYMENT.md`. Si cambias el comportamiento, actualiza el `docs/` correspondiente y `docs/CONTRACT.md`.
+Cada proyecto tiene `docs/` (ARCHITECTURE, TESTING y, según el caso, API, DATA_DICTIONARY o ER). `docs/arquitectura.html` es la visión general y `docs/VALIDATION.md` el informe de validación con sus hallazgos. Despliegue en producción (mismo origen detrás de Caddy con HTTPS): `backend/docs/DEPLOYMENT.md`. Vista previa en el celular vía Tailscale (servicio `web`, perfil `preview`): `docs/PREVIEW.md`. Si cambias el comportamiento, actualiza el `docs/` correspondiente y `docs/CONTRACT.md`.
