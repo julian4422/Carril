@@ -8,19 +8,28 @@ JSON, UUID como string, fechas ISO 8601 (`due_date` = `YYYY-MM-DD`). Autenticaci
 
 | Código | Cuándo | Cuerpo |
 |---|---|---|
-| 401 | sin token, inválido o expirado; credenciales inválidas | `{"detail": "No autenticado"}` |
-| 404 | recurso inexistente **o de otro usuario** | `{"detail": "Tablero no encontrado"}` |
-| 409 | email ya registrado; etiqueta repetida en el tablero; conflicto de BD (`IntegrityError`) residual | `{"detail": "El email ya está registrado"}` |
+| 401 | sin token: `No autenticado`; token expirado: `Token expirado`; firma inválida, malformado o usuario inexistente: `Token inválido`; login con email o clave incorrectos: `Credenciales inválidas` (misma respuesta para ambos). Lleva `WWW-Authenticate: Bearer` | `{"detail": "No autenticado"}` |
+| 404 | recurso inexistente **o de otro usuario** (`Tablero no encontrado`, `Columna no encontrada`, `Tarea no encontrada`, `Etiqueta no encontrada`) | `{"detail": "Tablero no encontrado"}` |
+| 409 | email ya registrado; etiqueta repetida en el tablero; `IntegrityError` residual de la BD | `{"detail": "El email ya está registrado"}`; `Ya existe una etiqueta con ese nombre en el tablero`; `Conflicto al guardar: reintenta la operación` |
 | 422 | validación (formato estándar de FastAPI) o regla de negocio | `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}` o `{"detail": "..."}` |
 | 500 | error no controlado | `{"detail": "Error interno"}` (siempre JSON) |
-| 503 | `/health` sin BD; cualquier endpoint si la BD no está disponible | `/health`: `{"status":"error","database":"error"}`; resto: `{"detail": "Base de datos no disponible"}` |
+| 503 | `/health` sin BD; cualquier endpoint si la conexión a la BD falla (`OperationalError`, `InterfaceError` u `OSError`) | `/health`: `{"status":"error","database":"error"}`; resto: `{"detail": "Base de datos no disponible"}` |
+
+Reglas de negocio con `{"detail": "..."}` en 422: `La columna destino debe pertenecer al mismo tablero`,
+`Todas las etiquetas deben existir y pertenecer al mismo tablero`, `assignee_id solo puede ser el dueño del tablero`,
+`column_ids debe contener exactamente todas las columnas del tablero`. Un `null` en un campo no anulable
+(`name`, `color`, `title`, `priority`) da el 422 estándar con `msg` `Value error, <campo> no puede ser null`.
+
+Límites de validación (ver `app/schemas/`): `email` máx. 254 con formato `a@b.c`; `full_name` 1-120; `password` 8-128;
+`name` de tablero 1-120; `name` de columna 1-60; `wip_limit` > 0; `title` 1-200; `body` 1-2000; `name` de etiqueta 1-40;
+`color` `#RRGGBB`; `priority` `low|medium|high|urgent` (defecto `medium`). `color` de tablero por defecto `#0f6e63`.
 
 ## Endpoints
 
 | Método | Ruta | Cuerpo | Respuesta |
 |---|---|---|---|
 | POST | /auth/register | `{email, full_name, password>=8}` | 201 UserOut · 409 · 422 |
-| POST | /auth/login | `{email, password}` | 200 TokenOut · 401 |
+| POST | /auth/login | `{email, password}` | 200 TokenOut (`expires_in` en segundos) · 401 |
 | GET | /auth/me | | 200 UserOut |
 | GET | /boards | | 200 BoardSummary[] (no archivados, `created_at` desc) |
 | POST | /boards | `{name, description?, color?}` | 201 BoardDetail (columnas Por hacer / En curso / Hecho) |
@@ -102,7 +111,7 @@ Comentario: `POST /tasks/{id}/comments {"body":"Listo"}` -> `201 {"id":"...","ta
 - **Textos obligatorios** (`name`, `title`, `body`, `full_name`) se recortan con `strip()`; si quedan vacíos -> 422.
 - **WIP** es informativo: se guarda pero la API no bloquea por él.
 - **Arranque.** La API no arranca si `JWT_SECRET` falta, tiene menos de 32 caracteres o es un valor de ejemplo
-  (`change-me-in-production`, `secret`, `changeme`). Genera uno con `openssl rand -hex 32`.
+  (`change-me-in-production`, `change-me`, `secret`, `changeme`; sin distinguir mayúsculas). Genera uno con `openssl rand -hex 32`.
 
 ## Reglas v1.2 (móvil)
 

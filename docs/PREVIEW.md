@@ -30,7 +30,7 @@ ts serve --bg --https=443 http://127.0.0.1:8088       # https://carril-mac.<tail
 ts serve status                                       # debe decir "(tailnet only)"
 ```
 
-Tras un `npm run build`, la PWA instalada muestra el aviso "Nueva versión disponible".
+Tras un `npm run build`, la PWA instalada muestra el aviso "Hay una versión nueva de Carril." con el botón para actualizar (puede tardar hasta 30 min, o al reabrirla).
 
 En el celular: abre la URL, entra y, en Android, Chrome → menú → "Instalar app"; en iPhone, Safari → Compartir → "Agregar a inicio".
 

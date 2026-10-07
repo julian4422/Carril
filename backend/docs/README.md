@@ -35,10 +35,25 @@ Producción (HTTPS, frontend y API en el mismo origen detrás de un proxy invers
 | Variable | Defecto | Descripción |
 |---|---|---|
 | `DATABASE_URL` | `postgresql+asyncpg://carril:carril@localhost:5432/carril` | Conexión async a Postgres |
-| `JWT_SECRET` | (obligatoria) | Secreto HS256, mínimo 32 caracteres y no un valor de ejemplo; la API no arranca si no cumple. `openssl rand -hex 32` |
+| `JWT_SECRET` | (obligatoria) | Secreto HS256, mínimo 32 caracteres y no un valor de ejemplo (`change-me-in-production`, `change-me`, `secret`, `changeme`); la API no arranca si no cumple. `openssl rand -hex 32` |
+| `JWT_ALGORITHM` | `HS256` | Algoritmo de firma del JWT; el compose no lo pasa, no suele cambiarse |
 | `JWT_EXPIRES_MINUTES` | `720` | Vigencia del token |
 | `CORS_ORIGINS` | `http://localhost:4200` | Orígenes permitidos, separados por comas. Se aplica también a las respuestas 500 y 503. Con frontend y API en el mismo origen el navegador no necesita CORS; basta con el origen público |
 | `FORWARDED_ALLOW_IPS` | `127.0.0.1` (imagen Docker) | IPs o subredes (CIDR) del proxy inverso de las que Uvicorn acepta `X-Forwarded-Proto/For`, separadas por comas; `*` confía en cualquiera. La lee Uvicorn, no la app. Ver [DEPLOYMENT.md](DEPLOYMENT.md) |
 | `BCRYPT_ROUNDS` | `12` | Coste de bcrypt (las pruebas usan 4) |
 | `TEST_DATABASE_URL` | `postgresql+asyncpg://carril:carril@localhost:5432/carril_test` | Solo pruebas de integración |
 | `E2E_BASE_URL` | `http://localhost:8000` | Solo pruebas e2e |
+
+La app no lee archivos `.env`: en local exporta las variables en el shell; en Docker las pasa el compose desde el `.env` de la raíz.
+
+## Problemas frecuentes
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| `docker compose up` falla con "Define JWT_SECRET en .env" | el compose exige la variable | `cp .env.example .env` y pon `openssl rand -hex 32` en `JWT_SECRET` |
+| El contenedor `api` se reinicia o `uvicorn` termina con `ValidationError ... jwt_secret` | `JWT_SECRET` falta, mide menos de 32 caracteres o es un valor de ejemplo; `Settings` se valida al importar `app.main` | Define un secreto válido y `docker compose up -d --build api`; revisa `docker compose logs api` |
+| `503 {"detail":"Base de datos no disponible"}` en cualquier endpoint, o `/health` con `{"status":"error","database":"error"}` | la API no conecta a Postgres (`OperationalError`, `InterfaceError` u `OSError`) | `docker compose ps` (db debe estar healthy); en local revisa `DATABASE_URL`. La API se recupera sola al volver la BD (`pool_pre_ping`) |
+| Las pruebas de integración o e2e salen como `skipped` | sin BD `carril_test` (`TEST_DATABASE_URL`) o sin API en `E2E_BASE_URL`; el motivo aparece en el mensaje del skip | `docker compose up -d db` (el DDL de `carril_test` solo se aplica con volumen vacío: `docker compose down -v` si no existe) y, para e2e, `docker compose up -d api` |
+| Las pruebas fallan con `ValidationError ... jwt_secret` al importar | se ejecutó fuera de `pytest`, sin `JWT_SECRET` | `tests/conftest.py` lo fija; para scripts sueltos exporta uno |
+| El navegador muestra error de red en vez del `detail` de un 500/503 | el `Origin` no está en `CORS_ORIGINS`, así que no hay cabeceras CORS | añade el origen (separados por comas, sin barra final) y reinicia la API |
+| Detrás de Caddy, `request.url` es `http` o la IP es la del proxy | la IP del proxy no está en `FORWARDED_ALLOW_IPS` | ver [DEPLOYMENT.md](DEPLOYMENT.md) |

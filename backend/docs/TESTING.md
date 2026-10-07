@@ -1,7 +1,8 @@
 # Pruebas
 
+Conteos al 2026-10 (`pytest --collect-only -q -m <marker>`): 63 unit, 70 integration, 6 e2e.
 Markers (registrados en `pyproject.toml`): `unit`, `integration`, `e2e`. Se asignan automáticamente según la carpeta.
-`asyncio_mode = auto`.
+`asyncio_mode = auto`. `tests/conftest.py` fija `BCRYPT_ROUNDS=4` (si no está definido) y un `JWT_SECRET` válido de prueba.
 
 ```bash
 cd backend
@@ -12,6 +13,8 @@ cd backend
 
 ## unit (`tests/unit/`)
 
+63 pruebas: `test_services` 19, `test_ordering` 15, `test_config` 10, `test_security` 10, `test_schemas` 5, `test_middleware` 4.
+
 Servicios y seguridad con repositorios en memoria (`tests/unit/fakes.py`), sin BD ni red: hash/verify, JWT (expirado, firma inválida,
 alg none), reglas puras de reordenamiento, mover (misma columna arriba/abajo, entre columnas, acotado), 404 por recurso ajeno,
 columnas por defecto, validación de schemas y configuración (`JWT_SECRET`, lista de `CORS_ORIGINS`).
@@ -19,6 +22,8 @@ columnas por defecto, validación de schemas y configuración (`JWT_SECRET`, lis
 convierte una excepción en 500 JSON, la vuelve a lanzar si la respuesta ya empezó y deja pasar los scopes que no son HTTP.
 
 ## integration (`tests/integration/`)
+
+70 pruebas: `test_tasks` 19, `test_auth_health` 12, `test_boards` 11, `test_concurrency_errors` 10, `test_mobile` 10, `test_columns` 8.
 
 La app real (`create_app()`) con `httpx.AsyncClient(transport=ASGITransport(app))` contra la BD `carril_test` del contenedor
 `db` (`TEST_DATABASE_URL`). Requiere `docker compose up -d db`; si la BD no responde las pruebas se saltan con un mensaje.
@@ -37,6 +42,8 @@ Verificación manual del contenedor (ver [DEPLOYMENT.md](DEPLOYMENT.md)): `curl 
 grande debe mostrar `content-encoding: gzip`.
 
 ## e2e (`tests/e2e/`)
+
+6 pruebas.
 
 `httpx` síncrono contra la API real (`E2E_BASE_URL`, defecto `http://localhost:8000`): health, `/docs`, registro de 2 usuarios únicos,
 flujo completo de tablero y aislamiento entre usuarios. Se saltan con un mensaje si la API no responde.

@@ -34,4 +34,4 @@ npm run test:e2e           # Playwright contra el stack real, en escritorio y en
 
 ## Documentación
 
-[docs/README](docs/README.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) (store, arrastre, auth) · [TESTING](docs/TESTING.md) · [MOBILE](docs/MOBILE.md) (PWA, arrastre táctil, service worker)
+[docs/README](docs/README.md) · [ARCHITECTURE](docs/ARCHITECTURE.md) (rutas, store, arrastre, auth, cómo añadir una pantalla) · [TESTING](docs/TESTING.md) · [MOBILE](docs/MOBILE.md) (PWA, arrastre táctil, service worker)

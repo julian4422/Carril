@@ -18,6 +18,28 @@ Soporte: `app/core` (config con pydantic-settings, `security` con bcrypt y JWT, 
 Regla de dependencias: los routers solo conocen servicios y schemas; los servicios reciben repositorios y un
 `UnitOfWork` por constructor (por eso se prueban con repositorios falsos); solo los repositorios escriben SQL.
 
+## Mapa de módulos
+
+| Carpeta (`app/`) | Qué vive ahí |
+|---|---|
+| `main.py` | `create_app()`: registra middlewares, manejadores de errores y el router; `lifespan` libera el engine al apagar |
+| `core/` | `config.py` (`Settings`, `get_settings` cacheada, validación de `JWT_SECRET`), `security.py`, `errors.py` |
+| `api/` | `deps.py` (cableado); `v1/__init__.py` monta el prefijo `/api/v1`; `v1/routers/` un archivo por recurso (`auth`, `boards`, `columns`, `tasks`, `labels`, `health`) |
+| `services/` | un servicio por recurso (`auth_service`, `board_service`, `column_service`, `task_service`, `label_service`, `comment_service`) y `ordering.py` |
+| `repositories/` | todo el SQL: `boards`, `columns`, `tasks`, `labels`, `comments`, `users` |
+| `db/` | `models.py` (ORM, `lazy="raise"`), `session.py` (engine, sesión por petición), `uow.py` |
+| `schemas/` | modelos Pydantic de entrada y salida (`auth`, `boards`, `tasks`, `labels`, `common`) |
+
+| Pieza | Archivo | Qué hace |
+|---|---|---|
+| Cableado de dependencias | `api/deps.py` | `get_session` -> repositorios -> servicio (`get_*_service`); `get_current_user` (Bearer) y alias `CurrentUser`, `*ServiceDep` |
+| Unidad de trabajo | `db/uow.py` | `UnitOfWork(session)` con `commit()` y `rollback()`; los servicios deciden cuándo confirmar |
+| Sesión y engine | `db/session.py` | engine perezoso con `pool_pre_ping=True`, `expire_on_commit=False`; `get_session` es la dependencia que las pruebas de integración sustituyen |
+| Reordenamiento | `services/ordering.py` | funciones puras: `clamp_position`, `insert_at`, `remove_item`, `move_within`, `move_between`, `same_members`, `renumber` |
+| Errores | `core/errors.py` | `DomainError` y subclases (`NotFoundError` 404, `ConflictError` 409, `UnauthorizedError` 401, `ValidationError` 422), `register_error_handlers`, `UnhandledErrorMiddleware` |
+| Seguridad | `core/security.py` | `hash_password`/`verify_password` (bcrypt), `create_access_token`/`decode_access_token` (JWT) |
+| Configuración | `core/config.py` | variables `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM` (`HS256`), `JWT_EXPIRES_MINUTES`, `CORS_ORIGINS`, `BCRYPT_ROUNDS`; no lee `.env` (`env_file=None`) |
+
 ## Flujo de una petición
 
 1. `HTTPBearer` extrae el token; `get_current_user` lo valida (`AuthService.authenticate`) y carga el usuario (401 si falla).

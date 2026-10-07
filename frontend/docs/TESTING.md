@@ -4,6 +4,8 @@ Tres capas. Unitarias e integración usan Jasmine + Karma con ChromeHeadless; e2
 
 ## 1. Unitarias (`*.spec.ts`)
 
+124 pruebas (sin `*.integration.spec.ts`): `board.store` 28, `core` 22, `board.logic` 20, `shared` 14, `pointer-drag` 13, `pointer-drag.logic` 13, `pwa` 10 y `task-card.component` 4. Cobertura de líneas actual ~99 % (umbral 80 %).
+
 Cubren la lógica aislada: `board.logic` (reordenar, mover entre columnas, índice de soltado, filtros), `BoardStore` (movimientos optimistas y reversión con `HttpTestingController`), servicios HTTP, `AuthService`, `TokenStorage`, interceptores, guards, pipes, utilidades de fecha/errores y componentes de UI aislados (botón, chip, modal, confirm, input, toast, header, tarjeta).
 
 Arrastre y PWA: `pointer-drag.logic.spec.ts` (umbral, pulsación larga, cancelación por scroll, destino de soltado, columna más cercana, velocidad de auto-scroll), `pointer-drag.spec.ts` (`PointerDragSession` con `PointerEvent` sintéticos, `jasmine.clock()` para la pulsación larga y un programador de cuadros falso para el auto-scroll: fantasma, `touchmove` cancelado, menú contextual, `Esc`, `pointercancel`, supresión del click) y `core/pwa/pwa.spec.ts` (`AppUpdateService` con un `SwUpdate` falso: `VERSION_READY`, activar y recargar, irrecuperable, búsqueda periódica; `ConnectivityService`; `AppStatusComponent` con el banner y el aviso).
@@ -16,6 +18,8 @@ Corre una vez, headless, con cobertura (`coverage/`) y excluye `*.integration.sp
 
 ## 2. Integración (`*.integration.spec.ts`)
 
+28 pruebas: tablero 14, auth 8 y lista de tableros 6.
+
 Componentes de feature reales + servicios reales + router (`RouterTestingHarness`) + `HttpTestingController` (solo la red está simulada), con los interceptores reales. Ver `src/app/integration-helpers.ts`. Casos: login completo que navega a `/boards`, errores de login/registro, guard que redirige a `/login`, 401 que cierra sesión, lista de tableros (carga, vacío, error, crear, borrar con modal), carga del tablero, arrastre de tarjetas y columnas con `PointerEvent` de tipo `touch` (pulsación larga), `mouse` y `pen`: la llamada a `/move` y `/columns/order` lleva el cuerpo correcto y se revierte ante un 500; también fantasma e indicadores, cancelación si el dedo se mueve antes de tiempo (scroll), `Esc` y supresión del click al soltar, movimiento por teclado, filtros, alta rápida de tarjetas, ajustes de columna y detalle de tarjeta (editar, asignar, etiquetas, comentarios, borrar).
 
 ```bash
@@ -25,6 +29,8 @@ npm run test:integration
 Para ver la cobertura combinada: `npx ng test --watch=false --browsers=ChromeHeadless --code-coverage`.
 
 ## 3. End to end (`e2e/`)
+
+3 pruebas: 1 de escritorio (`kanban.spec.ts`) y 2 móviles (`mobile.spec.ts`). Los conteos se obtienen contando `it(` en los `*.spec.ts` y coinciden con la salida de Karma.
 
 Playwright contra el stack REAL, sin mocks: `ng serve` (lo levanta `playwright.config.ts` con `reuseExistingServer`) y la API en `:8000`. El formulario de tarjeta rápida queda abierto tras crear una tarjeta (para encadenar varias), así que el test lo abre una sola vez. Cada corrida registra un usuario único (`e2e+<timestamp>@carril-e2e.dev`) y un `afterAll` lo borra al terminar (primero sus tableros y luego el usuario, con `docker compose exec -T db psql` desde la raíz del repo; requiere Docker). Hay dos proyectos:
 
