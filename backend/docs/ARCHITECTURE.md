@@ -38,7 +38,7 @@ Regla de dependencias: los routers solo conocen servicios y schemas; los servici
 | Reordenamiento | `services/ordering.py` | funciones puras: `clamp_position`, `insert_at`, `remove_item`, `move_within`, `move_between`, `same_members`, `renumber` |
 | Errores | `core/errors.py` | `DomainError` y subclases (`NotFoundError` 404, `ConflictError` 409, `UnauthorizedError` 401, `ValidationError` 422), `register_error_handlers`, `UnhandledErrorMiddleware` |
 | Seguridad | `core/security.py` | `hash_password`/`verify_password` (bcrypt), `create_access_token`/`decode_access_token` (JWT) |
-| Configuración | `core/config.py` | variables `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM` (`HS256`), `JWT_EXPIRES_MINUTES`, `CORS_ORIGINS`, `BCRYPT_ROUNDS`; no lee `.env` (`env_file=None`) |
+| Configuración | `core/config.py` | variables `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM` (`HS256`), `JWT_EXPIRES_MINUTES`, `CORS_ORIGINS`, `BCRYPT_ROUNDS`; no lee `.env` (`env_file=None`); si la validación falla, `get_settings()` sale con `SystemExit` y `[carril] Configuración inválida: <VARIABLE>: <motivo>`, sin traza ni el valor recibido |
 
 ## Flujo de una petición
 

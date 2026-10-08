@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 MIN_SECRET_LENGTH = 32
@@ -34,4 +34,12 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    try:
+        return Settings()
+    except ValidationError as exc:
+        # Sale con un mensaje legible en lugar de una traza de pydantic (nunca incluye el valor recibido).
+        problems = "; ".join(
+            f"{'.'.join(map(str, err['loc'])).upper()}: {err['msg'].removeprefix('Value error, ')}"
+            for err in exc.errors()
+        )
+        raise SystemExit(f"[carril] Configuración inválida: {problems}") from None

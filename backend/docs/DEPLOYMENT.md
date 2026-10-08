@@ -96,7 +96,27 @@ services:
       FORWARDED_ALLOW_IPS: 172.30.0.0/24
     # sin "ports": solo Caddy la alcanza
     networks: [carril]
-  # db: como en desarrollo, sin publicar 5432
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carril
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: carril
+      CARRIL_SEED: "0"    # sin usuario ni tablero de demo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/ddl:/carril/ddl:ro
+      - ./database/seed:/carril/seed:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # sin "ports": 5432 no se publica
+    networks: [carril]
 
 networks:
   carril:
@@ -104,6 +124,7 @@ networks:
       config: [{subnet: 172.30.0.0/24}]
 
 volumes:
+  pgdata:
   caddy_data:
   caddy_config:
 ```
@@ -116,7 +137,7 @@ Pasos:
 2. Define `JWT_SECRET` y `POSTGRES_PASSWORD` en `.env`.
 3. `docker compose -f docker-compose.prod.yml up -d --build`.
 
-El esquema lo aplica el contenedor `db` en el primer arranque (volumen vacío). En producción no cargues el seed de demo.
+El esquema lo aplica el contenedor `db` en el primer arranque (volumen vacío). En producción deja `CARRIL_SEED: "0"` en el servicio `db` (como en el fragmento) para no cargar el usuario ni el tablero de demo. Solo tiene efecto en ese primer arranque: con el volumen ya inicializado no añade ni quita datos.
 
 ## Comprobaciones tras el despliegue
 

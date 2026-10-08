@@ -52,7 +52,7 @@ No hay linters configurados.
 ## Arquitectura
 
 ### Base de datos
-- El esquema vive solo en `database/ddl`. El backend nunca crea ni migra tablas: no hay Alembic ni `create_all`. `database/init/00_init.sh` (montado en el contenedor) aplica el DDL a `carril` y `carril_test`, y el seed solo a `carril`.
+- El esquema vive solo en `database/ddl`. El backend nunca crea ni migra tablas: no hay Alembic ni `create_all`. `database/init/00_init.sh` (montado en el contenedor) aplica el DDL a `carril` y a `carril_test` (solo si `POSTGRES_TEST_DB` está definido; en producción no), y el seed solo a `carril` (salvo con `CARRIL_SEED=0`, para producción; solo actúa con el volumen vacío).
 - Las posiciones (`board_columns.position`, `tasks.position`) son base 0 y contiguas dentro de su padre. Sus UNIQUE son `DEFERRABLE INITIALLY DEFERRED`, así que un reordenamiento puede pasar por duplicados dentro de la transacción y solo se valida al COMMIT.
 
 ### Backend (`backend/app`)
@@ -61,6 +61,7 @@ No hay linters configurados.
 - Reordenamiento: funciones puras en `services/ordering.py`. Antes de leer posiciones, los servicios bloquean la fila del tablero (`BoardRepository.lock`, `SELECT … FOR UPDATE`) y vuelven a resolver los recursos. Un `IntegrityError` residual se responde con 409.
 - Las relaciones ORM usan `lazy="raise"`: hay que cargar con `selectinload` de forma explícita. `GET /boards/{id}` hace un número fijo de consultas y hay una prueba que lo verifica.
 - Middlewares (de fuera a dentro): GZip → CORS → `UnhandledErrorMiddleware` → manejadores de excepciones. El de errores va dentro de CORS para que los 500 lleven cabeceras CORS.
+- Config: `get_settings()` (`core/config.py`) valida al arrancar; un `JWT_SECRET` ausente, corto o de ejemplo termina el proceso con `[carril] Configuración inválida: …` (ver `docker compose logs api`).
 - Errores: los `DomainError` (`core/errors.py`) se traducen a `{"detail": ...}`. Todo error no controlado devuelve JSON: 500, o 503 si la BD no responde.
 - Pruebas de integración: se aíslan con TRUNCATE antes y después de cada prueba, no con rollback, porque cada petición hace su propio commit.
 

@@ -9,4 +9,4 @@ Esquema PostgreSQL 16 de Carril (DDL, seed, init y pruebas). Documentación comp
 | Pruebas (71: 63 unit, 5 integration, 3 e2e) | [`docs/TESTING.md`](docs/TESTING.md) |
 | Contrato (fuente de verdad) | [`../docs/CONTRACT.md`](../docs/CONTRACT.md) |
 
-Aviso: el init carga siempre el seed de demo (`demo@carril.dev` / `demo1234`) en la BD principal; ver la nota en `docs/README.md` antes de desplegar.
+Aviso: por defecto (`CARRIL_SEED=1`) el init carga el seed de demo (`demo@carril.dev` / `demo1234`) en la BD principal; usa `CARRIL_SEED=0` para omitirlo (ver `docs/README.md` antes de desplegar).

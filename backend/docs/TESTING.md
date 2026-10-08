@@ -1,6 +1,6 @@
 # Pruebas
 
-Conteos al 2026-10 (`pytest --collect-only -q -m <marker>`): 63 unit, 70 integration, 6 e2e.
+Conteos al 2026-10 (`pytest --collect-only -q -m <marker>`): 67 unit, 70 integration, 6 e2e.
 Markers (registrados en `pyproject.toml`): `unit`, `integration`, `e2e`. Se asignan automáticamente según la carpeta.
 `asyncio_mode = auto`. `tests/conftest.py` fija `BCRYPT_ROUNDS=4` (si no está definido) y un `JWT_SECRET` válido de prueba.
 
@@ -13,11 +13,12 @@ cd backend
 
 ## unit (`tests/unit/`)
 
-63 pruebas: `test_services` 19, `test_ordering` 15, `test_config` 10, `test_security` 10, `test_schemas` 5, `test_middleware` 4.
+67 pruebas: `test_services` 19, `test_ordering` 15, `test_config` 14, `test_security` 10, `test_schemas` 5, `test_middleware` 4.
 
 Servicios y seguridad con repositorios en memoria (`tests/unit/fakes.py`), sin BD ni red: hash/verify, JWT (expirado, firma inválida,
 alg none), reglas puras de reordenamiento, mover (misma columna arriba/abajo, entre columnas, acotado), 404 por recurso ajeno,
 columnas por defecto, validación de schemas y configuración (`JWT_SECRET`, lista de `CORS_ORIGINS`).
+`test_config.py` también cubre `get_settings()`: con un secreto corto o de ejemplo, o sin `JWT_SECRET`, sale con `SystemExit` y el mensaje `[carril] Configuración inválida: ...` (sin traza ni el valor recibido); con un secreto válido carga la configuración.
 `test_middleware.py`: orden de la pila (GZip -> CORS -> UnhandledError) y `minimum_size=1000`; `UnhandledErrorMiddleware`
 convierte una excepción en 500 JSON, la vuelve a lanzar si la respuesta ya empezó y deja pasar los scopes que no son HTTP.
 

@@ -9,6 +9,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carril}
       POSTGRES_DB: ${POSTGRES_DB:-carril}
       POSTGRES_TEST_DB: ${POSTGRES_TEST_DB:-carril_test}
+      CARRIL_SEED: ${CARRIL_SEED:-1}    # 0 = sin usuario ni tablero de demo (solo afecta al primer arranque del volumen)
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:

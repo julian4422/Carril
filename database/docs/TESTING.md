@@ -26,7 +26,7 @@ cd database
 .venv/bin/pytest            # todo (71)
 ```
 
-Instalación del entorno: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt` (pytest, psycopg 3, python-dotenv, bcrypt). `integration` y `e2e` fallan si el contenedor `db` no está arriba o si faltan `carril`/`carril_test` (volumen creado sin el init).
+Instalación del entorno: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt` (pytest, psycopg 3, python-dotenv, bcrypt). `test_real_containers_schema` espera el seed en `carril`, así que requiere `CARRIL_SEED=1`. `integration` y `e2e` fallan si el contenedor `db` no está arriba o si faltan `carril`/`carril_test` (volumen creado sin el init, o sin `POSTGRES_TEST_DB`, como en producción).
 
 ## Notas
 
